@@ -5,8 +5,8 @@
  *  2019
 ***********************************************/
 #include <Arduino.h>
-#include <TM1637Display.h>
-#include "HX711.h"
+#include <TM1637Display.h>  // https://github.com/avishorp/TM1637
+#include "HX711.h"          // https://github.com/bogde/HX711
 
 
 /**********************************************
