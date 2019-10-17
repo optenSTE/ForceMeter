@@ -12,11 +12,11 @@
 /**********************************************
  *  Pinout
 ***********************************************/
-// HX711 circuit wiring
-#define DOUT_PIN 5
-#define SCK_PIN 6
+// HX711 - ADC converter https://ru.aliexpress.com/item/33046037411.html?spm=a2g0s.9042311.0.0.5f8a33edzvRB08
+#define HX711_DOUT_PIN 5
+#define HX711_SCK_PIN 6
 
-// TM1637 module connection pins (Digital Pins)
+// TM1637 - Display module https://www.aliexpress.com/item/32797695630.html?spm=a2g0s.9042311.0.0.27424c4dyNtc2z
 #define TM1637_CLK_PIN 3
 #define TM1637_DIO_PIN 4
 
@@ -26,7 +26,7 @@
 /**********************************************
  *  Global value
 ***********************************************/
-HX711 scale;
+HX711 scale_sensor;
 TM1637Display display(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
 bool tare_pressed = false;
@@ -46,9 +46,9 @@ void setup()
     Serial.begin(38400);
   #endif
 
-  scale.begin(DOUT_PIN, SCK_PIN);
-  scale.set_gain(64);
-  ADC_tare_value = scale.read();
+  scale_sensor.begin(HX711_DOUT_PIN, HX711_SCK_PIN);
+  scale_sensor.set_gain(64);
+  ADC_tare_value = scale_sensor.read();
 
   display.setBrightness(0x0f, true);
   display.clear();
@@ -63,7 +63,7 @@ void loop()
   long ADC_sum = 0;
   for (int i=0; i<num_of_meas; i++)
   {
-    ADC_sum += scale.read();
+    ADC_sum += scale_sensor.read();
   }
   float ADC_mean = ADC_sum/num_of_meas;
 
