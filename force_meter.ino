@@ -27,9 +27,11 @@
 
 
 /**********************************************
- *  Another configuration
+ *  Constants
 ***********************************************/
 // #define SERIAL_OUTPUT  // enable serial output with force values
+
+#define ADC_GAIN 64 // hx711 gain factor - 32(channel B), 64(channel A), 128(channel A)
 
 // force limits
 #define MAX_FORCE 50
@@ -49,14 +51,14 @@
 #define FORCE_TRIGGER_RELAY_HIGH_TIME_MS 1000 // time period for high state of relay when force trigger released
 
 const long SCALE_FACTOR = 23300;          // how many ADC values in one kilo
-const uint8_t AVG_READ_MAX = 1;           // how many ADC outputs will be averaged
+const unsigned long ADC_AVG_TIME_MS = 200;// during this time adc-measurmetnts will be averaged
 const unsigned long DELAY_MS = 300;       // delays, used in different places
 const uint8_t DISPLAY_BRIGHTNESS = 0xff;  // display brightness
 
 // sumbols for display
-const uint8_t DISPLAY_TARE[] = { SEG_G, SEG_G, SEG_G, SEG_G };
-const uint8_t DISPLAY_ERROR[] = { SEG_A | SEG_F | SEG_E | SEG_D | SEG_G, SEG_G | SEG_E, SEG_G | SEG_E, SEG_G | SEG_E };
-
+const uint8_t DISPLAY_TARE[] = { SEG_G, SEG_G, SEG_G, SEG_G }; // '----'
+const uint8_t DISPLAY_ERROR[] = { SEG_A | SEG_F | SEG_E | SEG_D | SEG_G, SEG_G | SEG_E, SEG_G | SEG_E, SEG_G | SEG_E }; // 'Err'
+const uint8_t DISPLAY_TRIGGER[] = {SEG_A | SEG_F | SEG_E | SEG_G, SEG_F | SEG_E | SEG_D, SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G, SEG_A | SEG_C | SEG_D | SEG_F | SEG_G }; // 'FLAS'
 
 /**********************************************
  *  Global variables
@@ -72,6 +74,8 @@ bool display_blink_state_on = true;
 unsigned long force_trigger_start = 0;    // time when first force trigger conidions released
 
 
+
+
 void setup() 
 {
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
@@ -85,7 +89,7 @@ void setup()
   #endif
 
   scale_sensor.begin(HX711_DOUT_PIN, HX711_SCK_PIN);
-  scale_sensor.set_gain(64);
+  scale_sensor.set_gain(ADC_GAIN);
   adc_tare_value = scale_sensor.read();
 
   display.setBrightness(DISPLAY_BRIGHTNESS, true);
@@ -101,11 +105,14 @@ void loop()
 
   // ADC reading
   long adc_sum = 0;
-  for (int i=0; i<AVG_READ_MAX; i++)
+  int num_of_reading = 0;
+  unsigned long start = millis();
+  while ((millis() - start) < ADC_AVG_TIME_MS)
   {
-    if (scale_sensor.wait_ready_timeout(DELAY_MS))
+    if (scale_sensor.wait_ready_timeout(ADC_AVG_TIME_MS))
     {
       adc_sum += scale_sensor.read();
+      num_of_reading++;
     }
     else
     {
@@ -113,7 +120,7 @@ void loop()
       break;
     }
   }
-  float adc_avg = adc_sum/AVG_READ_MAX;
+  float adc_avg = adc_sum/num_of_reading;
 
   // zerroing ADC (pressing Tare button from interrupt)  
   if (tare_pressed)
@@ -143,6 +150,8 @@ void loop()
       {
         // trigger is released - let's release relay
         digitalWrite(RELAY_PIN, HIGH);
+        display.setBrightness(DISPLAY_BRIGHTNESS, true);  // Turn on
+        display.setSegments(DISPLAY_TRIGGER);
         delay(FORCE_TRIGGER_RELAY_HIGH_TIME_MS);
         digitalWrite(RELAY_PIN, LOW);
         force_trigger_start = 0;
@@ -164,6 +173,7 @@ void loop()
   {
     float display_value = force_kg;
     
+    // check for valid limits
     if (display_value < MIN_FORCE)
       display_value = MIN_FORCE;
     if (display_value > MAX_FORCE)
