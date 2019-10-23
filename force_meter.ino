@@ -29,7 +29,7 @@
 /**********************************************
  *  Constants
 ***********************************************/
-// #define SERIAL_OUTPUT  // enable serial output with force values
+#define SERIAL_OUTPUT  // enable serial output with force values
 
 #define ADC_GAIN 64 // hx711 gain factor - 32(channel B), 64(channel A), 128(channel A)
 
@@ -44,8 +44,8 @@
 //    (f_cur < (FORCE_TRIGGER_THRESHOLD + FORCE_TRIGGER_GAP))
 //  during FORCE_TRIGGER_TIME_MS
 // where f_cur is current averaged force
-#define FORCE_TRIGGER_THRESHOLD 1.5
-#define FORCE_TRIGGER_GAP 0.2
+#define FORCE_TRIGGER_THRESHOLD 160
+#define FORCE_TRIGGER_GAP 1
 #define FORCE_TRIGGER_TIME_MS 3000
 
 #define FORCE_TRIGGER_RELAY_HIGH_TIME_MS 1000 // time period for high state of relay when force trigger released
@@ -60,6 +60,8 @@ const uint8_t DISPLAY_TARE[] = { SEG_G, SEG_G, SEG_G, SEG_G }; // '----'
 const uint8_t DISPLAY_ERROR[] = { SEG_A | SEG_F | SEG_E | SEG_D | SEG_G, SEG_G | SEG_E, SEG_G | SEG_E, SEG_G | SEG_E }; // 'Err'
 const uint8_t DISPLAY_TRIGGER[] = {SEG_A | SEG_F | SEG_E | SEG_G, SEG_F | SEG_E | SEG_D, SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G, SEG_A | SEG_C | SEG_D | SEG_F | SEG_G }; // 'FLAS'
 
+const int LAST_MEASURMENTS_SIZE = 10; // Max_force mode - display shows max value from last measurments
+
 /**********************************************
  *  Global variables
 ***********************************************/
@@ -73,6 +75,7 @@ bool display_blink_state_on = true;
 
 unsigned long force_trigger_start = 0;    // time when first force trigger conidions released
 
+float last_measurments[LAST_MEASURMENTS_SIZE];
 
 
 
@@ -180,6 +183,22 @@ void loop()
       display_value = MAX_FORCE;
     if ((display_value == MAX_FORCE) or (display_value == MIN_FORCE))
       blink_mode = true;
+    
+    // shift stored values to left (zero index gone)
+    for (int i=0; i<LAST_MEASURMENTS_SIZE-1; i++)
+      last_measurments[i] = last_measurments[i+1];
+    // store new value to the last index
+    last_measurments[LAST_MEASURMENTS_SIZE-1] = display_value;
+    
+    // find max
+    float max_value = MIN_FORCE;
+    for (int i=0; i<LAST_MEASURMENTS_SIZE; i++)
+    {
+      if (last_measurments[i] > max_value)
+        max_value = last_measurments[i];
+    }
+    
+    display_value = max_value;
   
     int value_x10_int = int(display_value*10);
     display.showNumberDecEx(value_x10_int, (0x80 >> 2), false);
